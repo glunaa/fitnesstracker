@@ -13,9 +13,9 @@ def main():
         for x in range(len(menuList)):
             print("[{}]".format(x), menuList[x])
         print('[5] Quit')
-        
+
         choice = input('Enter your choice: ')
-        
+
         if choice == '0':
                 print('Convert lb -> kg')
                 convertWeight = conversion.poundsToKilo()
@@ -36,6 +36,6 @@ def main():
                 break
         else:
             print('Invalid choice. Please try again.')
-                
+
 if __name__ == '__main__':
     main()
