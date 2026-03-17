@@ -36,7 +36,7 @@ npm run dev
 
 ## 🖼️ Demo
 
-Live preview: coming soon 
+Live preview: https://glunaa.github.io/fitnesstracker/
 
 ## 📌 Future Enhancements
 
