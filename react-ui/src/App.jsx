@@ -13,12 +13,12 @@ function feetToCentimeter(inches) {
 function bodyMassIndex(heightCm, weightKg) {
   const meters = parseFloat(heightCm) * 0.01
   const bmi = (parseFloat(weightKg) / (meters * meters)).toFixed(2)
-  let category
-  if (bmi <= 18.5) category = 'Underweight'
-  else if (bmi <= 24.9) category = 'Normal Weight'
-  else if (bmi <= 29.9) category = 'Overweight'
-  else category = 'Obese'
-  return { bmi, category }
+  let category, color
+  if (bmi <= 18.5)      { category = 'Underweight';   color = '#60a5fa' }
+  else if (bmi <= 24.9) { category = 'Normal Weight';  color = '#34d399' }
+  else if (bmi <= 29.9) { category = 'Overweight';     color = '#fbbf24' }
+  else                  { category = 'Obese';           color = '#f87171' }
+  return { bmi: parseFloat(bmi), category, color }
 }
 
 function proteinCalculator(weightKg) {
@@ -30,20 +30,24 @@ function basalMetabolicRate(weightKg, heightCm, age) {
   return bmr.toFixed(2)
 }
 
+function timestamp() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
 // ── Shared UI primitives ───────────────────────────────────────────────────
 
-function Input({ label, value, onChange, placeholder, type = 'number' }) {
+function Input({ label, value, onChange, placeholder }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <label style={{ display: 'block', fontSize: 13, color: '#94a3b8', marginBottom: 6 }}>{label}</label>
       <input
-        type={type}
+        type="number"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         style={{
           width: '100%', padding: '10px 12px', borderRadius: 8,
-          border: '1px solid #334155', background: '#1e293b',
+          border: '1px solid #334155', background: '#0f172a',
           color: '#e2e8f0', fontSize: 15, outline: 'none',
         }}
       />
@@ -58,8 +62,7 @@ function CalcButton({ onClick }) {
       style={{
         width: '100%', padding: '11px', borderRadius: 8, border: 'none',
         background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-        color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer',
-        marginTop: 4,
+        color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer', marginTop: 4,
       }}
     >
       Calculate
@@ -67,15 +70,84 @@ function CalcButton({ onClick }) {
   )
 }
 
-function Result({ children }) {
-  if (!children) return null
+// ── History log (shared by all calculators) ────────────────────────────────
+
+function HistoryLog({ entries, onClear, renderEntry }) {
+  if (entries.length === 0) return null
   return (
-    <div style={{
-      marginTop: 16, padding: '14px 16px', borderRadius: 8,
-      background: '#1e293b', border: '1px solid #6366f1',
-      fontSize: 15, lineHeight: 1.7, color: '#a5b4fc',
-    }}>
-      {children}
+    <div style={{ marginTop: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <span style={{ fontSize: 12, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>
+          History ({entries.length})
+        </span>
+        <button
+          onClick={onClear}
+          style={{
+            background: 'none', border: 'none', color: '#475569',
+            fontSize: 12, cursor: 'pointer', padding: '2px 6px',
+          }}
+        >
+          Clear
+        </button>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {entries.map((entry, i) => (
+          <div
+            key={i}
+            style={{
+              padding: '10px 14px', borderRadius: 8,
+              background: i === 0 ? '#1e293b' : '#0f172a',
+              border: `1px solid ${i === 0 ? '#334155' : '#1e293b'}`,
+              opacity: i === 0 ? 1 : 0.65,
+              fontSize: 14,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>{renderEntry(entry)}</div>
+              <span style={{ fontSize: 11, color: '#475569', marginLeft: 12, flexShrink: 0 }}>
+                {entry.time}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── BMI scale bar ──────────────────────────────────────────────────────────
+
+function BmiBar({ bmi }) {
+  // clamp to 10–40 range for display
+  const min = 10, max = 40
+  const pct = Math.min(Math.max(((bmi - min) / (max - min)) * 100, 0), 100)
+
+  const zones = [
+    { label: 'Under', end: (18.5 - min) / (max - min) * 100, color: '#60a5fa' },
+    { label: 'Normal', end: (25 - min) / (max - min) * 100, color: '#34d399' },
+    { label: 'Over', end: (30 - min) / (max - min) * 100, color: '#fbbf24' },
+    { label: 'Obese', end: 100, color: '#f87171' },
+  ]
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ position: 'relative', height: 10, borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
+        {zones.map((z, i) => {
+          const start = i === 0 ? 0 : zones[i - 1].end
+          return (
+            <div key={z.label} style={{ width: `${z.end - start}%`, background: z.color, opacity: 0.35 }} />
+          )
+        })}
+        {/* needle */}
+        <div style={{
+          position: 'absolute', top: -2, bottom: -2,
+          left: `calc(${pct}% - 2px)`,
+          width: 4, borderRadius: 2, background: '#fff',
+        }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 10, color: '#475569' }}>
+        <span>10</span><span>18.5</span><span>25</span><span>30</span><span>40</span>
+      </div>
     </div>
   )
 }
@@ -84,24 +156,56 @@ function Result({ children }) {
 
 function LbsToKg() {
   const [lbs, setLbs] = useState('')
-  const [result, setResult] = useState(null)
+  const [history, setHistory] = useState([])
+
+  function calculate() {
+    if (!lbs) return
+    setHistory(h => [{ lbs, kg: poundsToKilo(lbs), time: timestamp() }, ...h])
+  }
+
   return (
     <>
       <Input label="Weight (pounds)" value={lbs} onChange={setLbs} placeholder="e.g. 150" />
-      <CalcButton onClick={() => setResult(poundsToKilo(lbs))} />
-      <Result>{result && <><strong>{lbs} lbs</strong> = <strong>{result} kg</strong></>}</Result>
+      <CalcButton onClick={calculate} />
+      <HistoryLog
+        entries={history}
+        onClear={() => setHistory([])}
+        renderEntry={e => (
+          <span style={{ color: '#a5b4fc' }}>
+            <strong style={{ color: '#e2e8f0' }}>{e.lbs} lbs</strong>
+            {' → '}
+            <strong style={{ color: '#e2e8f0' }}>{e.kg} kg</strong>
+          </span>
+        )}
+      />
     </>
   )
 }
 
 function FtToCm() {
   const [inches, setInches] = useState('')
-  const [result, setResult] = useState(null)
+  const [history, setHistory] = useState([])
+
+  function calculate() {
+    if (!inches) return
+    setHistory(h => [{ inches, cm: feetToCentimeter(inches), time: timestamp() }, ...h])
+  }
+
   return (
     <>
       <Input label="Height (inches)" value={inches} onChange={setInches} placeholder="e.g. 70" />
-      <CalcButton onClick={() => setResult(feetToCentimeter(inches))} />
-      <Result>{result && <><strong>{inches} in</strong> = <strong>{result} cm</strong></>}</Result>
+      <CalcButton onClick={calculate} />
+      <HistoryLog
+        entries={history}
+        onClear={() => setHistory([])}
+        renderEntry={e => (
+          <span style={{ color: '#a5b4fc' }}>
+            <strong style={{ color: '#e2e8f0' }}>{e.inches} in</strong>
+            {' → '}
+            <strong style={{ color: '#e2e8f0' }}>{e.cm} cm</strong>
+          </span>
+        )}
+      />
     </>
   )
 }
@@ -109,36 +213,63 @@ function FtToCm() {
 function BMI() {
   const [height, setHeight] = useState('')
   const [weight, setWeight] = useState('')
-  const [result, setResult] = useState(null)
+  const [history, setHistory] = useState([])
+
+  function calculate() {
+    if (!height || !weight) return
+    const result = bodyMassIndex(height, weight)
+    setHistory(h => [{ height, weight, ...result, time: timestamp() }, ...h])
+  }
+
   return (
     <>
       <Input label="Height (cm)" value={height} onChange={setHeight} placeholder="e.g. 175" />
       <Input label="Weight (kg)" value={weight} onChange={setWeight} placeholder="e.g. 70" />
-      <CalcButton onClick={() => setResult(bodyMassIndex(height, weight))} />
-      <Result>
-        {result && (
-          <>
-            <div>BMI: <strong>{result.bmi}</strong></div>
-            <div>Category: <strong>{result.category}</strong></div>
-            <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>
-              Under 18.5 · 18.5–24.9 · 25–29.9 · 30+<br />
-              Underweight · Normal · Overweight · Obese
+      <CalcButton onClick={calculate} />
+      {history.length > 0 && <BmiBar bmi={history[0].bmi} />}
+      <HistoryLog
+        entries={history}
+        onClear={() => setHistory([])}
+        renderEntry={e => (
+          <div>
+            <span style={{ color: '#94a3b8', fontSize: 13 }}>
+              {e.height}cm / {e.weight}kg
+            </span>
+            <div>
+              BMI{' '}
+              <strong style={{ color: e.color, fontSize: 16 }}>{e.bmi}</strong>
+              {' — '}
+              <span style={{ color: e.color }}>{e.category}</span>
             </div>
-          </>
+          </div>
         )}
-      </Result>
+      />
     </>
   )
 }
 
 function Protein() {
   const [weight, setWeight] = useState('')
-  const [result, setResult] = useState(null)
+  const [history, setHistory] = useState([])
+
+  function calculate() {
+    if (!weight) return
+    setHistory(h => [{ weight, protein: proteinCalculator(weight), time: timestamp() }, ...h])
+  }
+
   return (
     <>
       <Input label="Weight (kg)" value={weight} onChange={setWeight} placeholder="e.g. 70" />
-      <CalcButton onClick={() => setResult(proteinCalculator(weight))} />
-      <Result>{result && <>Daily protein intake: <strong>{result} g/day</strong></>}</Result>
+      <CalcButton onClick={calculate} />
+      <HistoryLog
+        entries={history}
+        onClear={() => setHistory([])}
+        renderEntry={e => (
+          <span style={{ color: '#a5b4fc' }}>
+            {e.weight} kg → <strong style={{ color: '#e2e8f0' }}>{e.protein} g/day</strong> protein
+          </span>
+        )}
+      />
     </>
   )
 }
@@ -147,14 +278,28 @@ function BMR() {
   const [weight, setWeight] = useState('')
   const [height, setHeight] = useState('')
   const [age, setAge] = useState('')
-  const [result, setResult] = useState(null)
+  const [history, setHistory] = useState([])
+
+  function calculate() {
+    if (!weight || !height || !age) return
+    setHistory(h => [{ weight, height, age, bmr: basalMetabolicRate(weight, height, age), time: timestamp() }, ...h])
+  }
+
   return (
     <>
       <Input label="Weight (kg)" value={weight} onChange={setWeight} placeholder="e.g. 75" />
       <Input label="Height (cm)" value={height} onChange={setHeight} placeholder="e.g. 175" />
       <Input label="Age (years)" value={age} onChange={setAge} placeholder="e.g. 25" />
-      <CalcButton onClick={() => setResult(basalMetabolicRate(weight, height, age))} />
-      <Result>{result && <>Your BMR: <strong>{result} calories/day</strong></>}</Result>
+      <CalcButton onClick={calculate} />
+      <HistoryLog
+        entries={history}
+        onClear={() => setHistory([])}
+        renderEntry={e => (
+          <span style={{ color: '#a5b4fc' }}>
+            {e.weight}kg · {e.height}cm · {e.age}yr → <strong style={{ color: '#e2e8f0' }}>{e.bmr} cal/day</strong>
+          </span>
+        )}
+      />
     </>
   )
 }
