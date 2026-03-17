@@ -21,9 +21,17 @@ function calcBMI(heightCm, weightKg) {
   return { bmi, category, color }
 }
 
-function calcIdealWeight(heightCm) {
-  const m = parseFloat(heightCm) * 0.01
-  return { min: +(18.5 * m * m).toFixed(1), max: +(24.9 * m * m).toFixed(1) }
+// Hamwi formula — returns range in kg (base ± 10%)
+function calcIdealWeight(heightCm, sex = 'male') {
+  const inches = parseFloat(heightCm) / 2.54
+  const over5ft = Math.max(inches - 60, 0)
+  const baseLbs = sex === 'female' ? 100 + 5 * over5ft : 106 + 6 * over5ft
+  const minLbs = +(baseLbs * 0.9).toFixed(1)
+  const maxLbs = +(baseLbs * 1.1).toFixed(1)
+  // store in kg internally
+  const minKg = +(minLbs / 2.2046).toFixed(1)
+  const maxKg = +(maxLbs / 2.2046).toFixed(1)
+  return { minKg, maxKg, minLbs, maxLbs }
 }
 
 function calcBMR(weightKg, heightCm, age) {
@@ -187,7 +195,7 @@ function StatTile({ label, value, unit, color }) {
 
 function ProfileCard({ profile, onChange, units }) {
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState({ weight: '', height: '', age: '' })
+  const [draft, setDraft] = useState({ weight: '', height: '', age: '', sex: 'male' })
 
   // Populate draft in display units whenever we open edit mode or units change
   useEffect(() => {
@@ -195,6 +203,7 @@ function ProfileCard({ profile, onChange, units }) {
       weight: profile.weight ? String(toDispW(profile.weight, units)) : '',
       height: profile.height ? String(toDispH(profile.height, units)) : '',
       age:    profile.age    ? String(profile.age) : '',
+      sex:    profile.sex    || 'male',
     })
   }, [units, profile, editing])
 
@@ -203,6 +212,7 @@ function ProfileCard({ profile, onChange, units }) {
       weight: draft.weight ? toMetW(draft.weight, units) : null,
       height: draft.height ? toMetH(draft.height, units) : null,
       age:    draft.age    ? +draft.age : null,
+      sex:    draft.sex,
     }
     onChange(next)
     save(K.profile, next)
@@ -211,7 +221,7 @@ function ProfileCard({ profile, onChange, units }) {
 
   const hasBMI = profile.weight && profile.height
   const bmiResult = hasBMI ? calcBMI(profile.height, profile.weight) : null
-  const idealResult = profile.height ? calcIdealWeight(profile.height) : null
+  const idealResult = profile.height ? calcIdealWeight(profile.height, profile.sex || 'male') : null
   const hasData = profile.weight || profile.height || profile.age
 
   return (
@@ -235,7 +245,7 @@ function ProfileCard({ profile, onChange, units }) {
           {idealResult    && (
             <StatTile
               label="Ideal weight"
-              value={`${toDispW(idealResult.min, units)}–${toDispW(idealResult.max, units)}`}
+              value={units === 'imperial' ? `${idealResult.minLbs}–${idealResult.maxLbs}` : `${idealResult.minKg}–${idealResult.maxKg}`}
               unit={wLabel(units)}
             />
           )}
@@ -250,7 +260,7 @@ function ProfileCard({ profile, onChange, units }) {
 
       {editing && (
         <div style={{ marginTop: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
             {[
               { key: 'weight', label: `Weight (${wLabel(units)})`, ph: units === 'imperial' ? '154' : '70' },
               { key: 'height', label: `Height (${hLabel(units)})`, ph: units === 'imperial' ? '69'  : '175' },
@@ -265,6 +275,16 @@ function ProfileCard({ profile, onChange, units }) {
                     color: 'var(--text)', fontSize: 14, outline: 'none' }} />
               </div>
             ))}
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 5 }}>Sex</label>
+              <select value={draft.sex} onChange={e => setDraft(d => ({ ...d, sex: e.target.value }))}
+                style={{ width: '100%', padding: '9px 10px', borderRadius: 7,
+                  border: '1px solid var(--border)', background: 'var(--surface2)',
+                  color: 'var(--text)', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
           </div>
           <button onClick={handleSave} style={{ marginTop: 14, width: '100%', padding: '10px', borderRadius: 8,
             border: 'none', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
@@ -406,21 +426,38 @@ function CalorieGoal({ profile, units }) {
 
 function IdealWeight({ profile, units }) {
   const [height, setHeight] = useState(profile.height ? String(toDispH(profile.height, units)) : '')
+  const [sex, setSex] = useState(profile.sex || 'male')
   const [hist, setHist] = useState([])
   useEffect(() => { if (profile.height) setHeight(String(toDispH(profile.height, units))) }, [profile.height, units])
+  useEffect(() => { if (profile.sex) setSex(profile.sex) }, [profile.sex])
   function calc() {
     if (!height) return
-    const { min, max } = calcIdealWeight(toMetH(height, units))
-    const dMin = toDispW(min, units), dMax = toDispW(max, units)
-    setHist(h => [{ height, dMin, dMax, time: ts() }, ...h])
+    const result = calcIdealWeight(toMetH(height, units), sex)
+    const dMin = units === 'imperial' ? result.minLbs : result.minKg
+    const dMax = units === 'imperial' ? result.maxLbs : result.maxKg
+    setHist(h => [{ height, sex, dMin, dMax, time: ts() }, ...h])
   }
   return (
     <>
-      <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Healthy BMI range 18.5–24.9.</p>
+      <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Hamwi formula — base weight ± 10%.</p>
       <NumInput label={`Height (${hLabel(units)})`} value={height} onChange={setHeight} placeholder={units === 'imperial' ? 'e.g. 69' : 'e.g. 175'} />
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ display: 'block', fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>Sex</label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {['male', 'female'].map(s => (
+            <button key={s} onClick={() => setSex(s)} style={{
+              flex: 1, padding: '9px', borderRadius: 8, border: '1px solid',
+              borderColor: sex === s ? '#6366f1' : 'var(--border)',
+              background: sex === s ? '#312e81' : 'var(--surface2)',
+              color: sex === s ? '#c7d2fe' : 'var(--muted)',
+              fontSize: 14, cursor: 'pointer', fontWeight: 500, textTransform: 'capitalize',
+            }}>{s}</button>
+          ))}
+        </div>
+      </div>
       <PrimaryBtn onClick={calc} />
       <HistoryLog entries={hist} onClear={() => setHist([])}
-        renderEntry={e => <span style={{ color: 'var(--accent)' }}>{e.height} {hLabel(units)} → <strong style={{ color: 'var(--text)' }}>{e.dMin}–{e.dMax} {wLabel(units)}</strong></span>}
+        renderEntry={e => <span style={{ color: 'var(--accent)' }}>{e.height} {hLabel(units)} ({e.sex}) → <strong style={{ color: 'var(--text)' }}>{e.dMin}–{e.dMax} {wLabel(units)}</strong></span>}
         shareText={e => `Ideal weight for ${e.height} ${hLabel(units)}: ${e.dMin}–${e.dMax} ${wLabel(units)}`} />
     </>
   )
