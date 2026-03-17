@@ -6,7 +6,6 @@ import {
 
 // ── Calculations ────────────────────────────────────────────────────────────
 
-const poundsToKilo  = v => +(parseFloat(v) / 2.2046).toFixed(2)
 const kiloToPounds  = v => +(parseFloat(v) * 2.2046).toFixed(1)
 const inchesToCm    = v => +(parseFloat(v) * 2.54).toFixed(2)
 const cmToInches    = v => +(parseFloat(v) / 2.54).toFixed(1)
@@ -280,35 +279,6 @@ function ProfileCard({ profile, onChange, units }) {
 
 // ── Calculators ──────────────────────────────────────────────────────────────
 
-function LbsToKg() {
-  const [lbs, setLbs] = useState('')
-  const [hist, setHist] = useState([])
-  const calc = () => { if (!lbs) return; setHist(h => [{ lbs, kg: poundsToKilo(lbs), time: ts() }, ...h]) }
-  return (
-    <>
-      <NumInput label="Weight (lbs)" value={lbs} onChange={setLbs} placeholder="e.g. 150" />
-      <PrimaryBtn onClick={calc} />
-      <HistoryLog entries={hist} onClear={() => setHist([])}
-        renderEntry={e => <span style={{ color: 'var(--accent)' }}><strong style={{ color: 'var(--text)' }}>{e.lbs} lbs</strong>{' → '}<strong style={{ color: 'var(--text)' }}>{e.kg} kg</strong></span>}
-        shareText={e => `${e.lbs} lbs = ${e.kg} kg`} />
-    </>
-  )
-}
-
-function FtToCm() {
-  const [inches, setInches] = useState('')
-  const [hist, setHist] = useState([])
-  const calc = () => { if (!inches) return; setHist(h => [{ inches, cm: inchesToCm(inches), time: ts() }, ...h]) }
-  return (
-    <>
-      <NumInput label="Height (inches)" value={inches} onChange={setInches} placeholder="e.g. 70" />
-      <PrimaryBtn onClick={calc} />
-      <HistoryLog entries={hist} onClear={() => setHist([])}
-        renderEntry={e => <span style={{ color: 'var(--accent)' }}><strong style={{ color: 'var(--text)' }}>{e.inches} in</strong>{' → '}<strong style={{ color: 'var(--text)' }}>{e.cm} cm</strong></span>}
-        shareText={e => `${e.inches} in = ${e.cm} cm`} />
-    </>
-  )
-}
 
 function BMI({ profile, units }) {
   const [height, setHeight] = useState(profile.height ? String(toDispH(profile.height, units)) : '')
@@ -579,24 +549,20 @@ function ProgressTracker({ profile, units }) {
 // ── Tool definitions ──────────────────────────────────────────────────────────
 
 const TOOLS = [
-  { id: 0, label: 'lbs → kg',       icon: '⚖️' },
-  { id: 1, label: 'inches → cm',    icon: '📏' },
-  { id: 2, label: 'BMI',            icon: '🧮' },
-  { id: 3, label: 'Protein',        icon: '🥩' },
-  { id: 4, label: 'BMR',            icon: '🔥' },
-  { id: 5, label: 'Calorie Goal',   icon: '🍽️' },
-  { id: 6, label: 'Ideal Weight',   icon: '🎯' },
+  { id: 0, label: 'BMI',            icon: '🧮' },
+  { id: 1, label: 'Protein',        icon: '🥩' },
+  { id: 2, label: 'BMR',            icon: '🔥' },
+  { id: 3, label: 'Calorie Goal',   icon: '🍽️' },
+  { id: 4, label: 'Ideal Weight',   icon: '🎯' },
 ]
 
 function renderTool(id, profile, units) {
   switch (id) {
-    case 0: return <LbsToKg />
-    case 1: return <FtToCm />
-    case 2: return <BMI          profile={profile} units={units} />
-    case 3: return <Protein      profile={profile} units={units} />
-    case 4: return <BMR          profile={profile} units={units} />
-    case 5: return <CalorieGoal  profile={profile} units={units} />
-    case 6: return <IdealWeight  profile={profile} units={units} />
+    case 0: return <BMI          profile={profile} units={units} />
+    case 1: return <Protein      profile={profile} units={units} />
+    case 2: return <BMR          profile={profile} units={units} />
+    case 3: return <CalorieGoal  profile={profile} units={units} />
+    case 4: return <IdealWeight  profile={profile} units={units} />
     default: return null
   }
 }
