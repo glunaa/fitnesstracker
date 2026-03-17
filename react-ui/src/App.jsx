@@ -6,6 +6,7 @@ import {
 
 // ── Calculations ────────────────────────────────────────────────────────────
 
+const poundsToKilo  = v => +(parseFloat(v) / 2.2046).toFixed(2)
 const kiloToPounds  = v => +(parseFloat(v) * 2.2046).toFixed(1)
 const inchesToCm    = v => +(parseFloat(v) * 2.54).toFixed(2)
 const cmToInches    = v => +(parseFloat(v) / 2.54).toFixed(1)
